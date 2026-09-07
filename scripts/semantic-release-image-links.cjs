@@ -16,7 +16,7 @@
 
 const REGISTRY = "ghcr.io/merkleye";
 const REPO = "merkleye/certspotter";
-const IMAGE = "merkleye-certspotter";
+const IMAGE = "certspotter";
 
 module.exports = {
   generateNotes: async (_pluginConfig, context) => {
