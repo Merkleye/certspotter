@@ -1,0 +1,22 @@
+# Keeps the build context small and the image reproducible from source:
+# nothing here is referenced by the Containerfile (the certspotter binary
+# itself is `go install`ed from a pinned upstream release, not built from
+# this repo) or wanted inside the image.
+.git
+.github
+.gitignore
+.gitattributes
+*.md
+LICENSE
+tests
+coverage
+node_modules
+package.json
+package-lock.json
+.releaserc.json
+mise.toml
+scripts
+.containerignore
+.dockerignore
+Containerfile
+Dockerfile
