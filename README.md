@@ -4,8 +4,12 @@ The certspotter sidecar for [Merkleye](https://github.com/merkleye/merkleye)
 — packages SSLMate's
 [certspotter](https://github.com/SSLMate/certspotter) as Merkleye's primary
 Certificate Transparency ingestion source, with a script hook (`hook.sh`)
-that POSTs each discovered certificate to the backend and a healthcheck
-(`healthcheck.sh`) that reports liveness and per-log checkpoint state.
+that POSTs each discovered certificate to the backend, a healthcheck
+(`healthcheck.sh`) that reports liveness and per-log checkpoint state, and a
+supervisor (`supervise.sh`) that owns the certspotter process — certspotter
+reads `-watchlist` once at startup with no reload signal, so `supervise.sh`
+long-polls the backend for watch-set changes and restarts certspotter to
+apply them (ADR-0060).
 
 This repo was split out of `merkleye/merkleye`'s `sidecars/certspotter/`
 directory so the certspotter integration has its own build/release
@@ -21,6 +25,7 @@ fit together.
 |---|---|
 | `hook.sh` | certspotter script hook → Merkleye backend |
 | `healthcheck.sh` | Docker HEALTHCHECK + heartbeat/log-status POST |
+| `supervise.sh` | Owns the certspotter process; pulls the watch set from the backend and restarts certspotter to apply changes |
 | `Containerfile` | Builds `ghcr.io/merkleye/merkleye-certspotter` on top of a pinned `certspotter` release |
 
 ## CI/CD

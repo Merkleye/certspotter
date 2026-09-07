@@ -31,7 +31,13 @@ if ! pgrep -x certspotter >/dev/null 2>&1; then
     exit 1
 fi
 
-if [ -z "$(find "$CERTSPOTTER_STATE_DIR" -type f -mmin "-${stale_minutes}" 2>/dev/null)" ]; then
+# The watchlist supervisor keeps its own files in this directory
+# (watchlist.txt and friends — see supervise.sh), and those are touched
+# whenever the watch set changes, not when a log checkpoint advances.
+# Counting them here would let a freshly-synced watchlist stand in for the
+# checkpoint freshness this check exists to prove.
+if [ -z "$(find "$CERTSPOTTER_STATE_DIR" -type f -mmin "-${stale_minutes}" \
+        ! -name 'watchlist*' ! -name '.watchlist*' 2>/dev/null)" ]; then
     echo "healthcheck: no checkpoint activity under $CERTSPOTTER_STATE_DIR in ${stale_minutes}m" >&2
     exit 1
 fi
