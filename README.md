@@ -29,10 +29,24 @@ push to it without a separate GHCR access grant.
 | `healthcheck.sh` | Docker HEALTHCHECK + heartbeat/log-status POST |
 | `supervise.sh` | Owns the certspotter process; pulls the watch set from the backend and restarts certspotter to apply changes |
 | `Containerfile` | Builds `ghcr.io/merkleye/certspotter` on top of a pinned `certspotter` release |
+| `tests/` | bats suite for `hook.sh`, `healthcheck.sh` and `supervise.sh`, run via `mise run test` |
+
+## Testing
+
+`mise run test` installs [bats-core](https://github.com/bats-core/bats-core)
+and [bashcov](https://github.com/infertux/bashcov), then runs
+`tests/*.bats` under bashcov and gates on a 100% statement-coverage floor
+(`tests/coverage_report.sh`). `supervise.sh`'s functions are unit-tested by
+sourcing the script directly (`SUPERVISE_SOURCE_ONLY=1` skips its top-level
+boot/refresh loop, which isn't itself a function — see the script's own
+comment); that loop is instead covered by `tests/supervise_integration.bats`,
+which runs the real script as a subprocess against a fake `certspotter`
+binary and a scripted fake `curl` (`tests/bin/`).
 
 ## CI/CD
 
-- `.github/workflows/ci.yml` — builds the container image on every pull
+- `.github/workflows/ci.yml` — runs the bats suite (100% statement-coverage
+  floor, `mise run test`) and builds the container image on every pull
   request.
 - `.github/workflows/pr-preview-image.yml` — publishes a
   `ghcr.io/merkleye/certspotter:pr-<number>` preview image per PR

@@ -36,8 +36,13 @@ fi
 # whenever the watch set changes, not when a log checkpoint advances.
 # Counting them here would let a freshly-synced watchlist stand in for the
 # checkpoint freshness this check exists to prove.
+# simplecov:disable -- a backslash-continued command captured via $(...)
+# reads as uncovered on its continuation line(s) under bashcov no matter how
+# many times it runs; see hook.sh's payload assignment for the same note.
+# tests/healthcheck.bats drives both outcomes of this check directly.
 if [ -z "$(find "$CERTSPOTTER_STATE_DIR" -type f -mmin "-${stale_minutes}" \
         ! -name 'watchlist*' ! -name '.watchlist*' 2>/dev/null)" ]; then
+# simplecov:enable
     echo "healthcheck: no checkpoint activity under $CERTSPOTTER_STATE_DIR in ${stale_minutes}m" >&2
     exit 1
 fi
@@ -53,15 +58,25 @@ fi
 # Heartbeat is best-effort: reuse hook.sh's auth pattern, but never let a
 # backend hiccup turn into a false-negative healthcheck.
 if [ -n "${MERKLEYE_HOOK_URL:-}" ] && [ -n "$hook_secret" ]; then
+    # simplecov:disable -- same bashcov multi-line-command limitation noted
+    # above; tests/healthcheck.bats asserts the heartbeat POST happens (and
+    # that a failure here is non-fatal) via the mock curl's call log.
     curl --silent --show-error --fail --max-time 5 \
         -X POST "$MERKLEYE_HOOK_URL" \
         -H 'Content-Type: application/json' \
         -H "X-Merkleye-Hook-Secret: $hook_secret" \
         -d '{"event":"heartbeat"}' \
         >/dev/null 2>&1 || echo "healthcheck: heartbeat POST failed (non-fatal)" >&2
+    # simplecov:enable
 
     logs_dir="$CERTSPOTTER_STATE_DIR/logs"
     if [ -d "$logs_dir" ]; then
+        # simplecov:disable -- this whole loop's output is captured via
+        # $(...) and piped to `jq -s`, which bashcov can't attribute
+        # per-line either (same limitation, different shape); every branch
+        # here (empty logs_dir, an unreadable state.json, a log with and
+        # without a recorded error) has its own tests/healthcheck.bats case
+        # asserting on the resulting log_status payload.
         logs_json="$(
             for d in "$logs_dir"/*/; do
                 [ -d "$d" ] || continue
@@ -97,6 +112,7 @@ if [ -n "${MERKLEYE_HOOK_URL:-}" ] && [ -n "$hook_secret" ]; then
                     }' "$state_file" 2>/dev/null
             done | jq -s -c '.'
         )"
+        # simplecov:enable
         if [ -n "$logs_json" ] && [ "$logs_json" != "[]" ]; then
             curl --silent --show-error --fail --max-time 10 \
                 -X POST "$MERKLEYE_HOOK_URL" \

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Mock pgrep for healthcheck.sh's liveness check. Never inspects real
+# processes: exits 0 (found) unless MOCK_PGREP_EXIT says otherwise, so
+# tests can drive both branches of `pgrep -x certspotter` deterministically
+# regardless of what is actually running in the test environment.
+exit "${MOCK_PGREP_EXIT:-0}"

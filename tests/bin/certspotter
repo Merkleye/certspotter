@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Fake certspotter for supervise.sh integration tests. Never tails real logs.
+#
+# Every invocation's args are recorded (one line per call) to
+# $FAKE_CERTSPOTTER_LOG, if set, so tests can assert on -watchlist/-state_dir.
+#
+# Behavior is selected by $FAKE_CERTSPOTTER_MODE:
+#   run (default)  - block until TERM/INT, then exit 0 (a clean stop).
+#   crash          - exit immediately with $FAKE_CERTSPOTTER_EXIT (default 1),
+#                     simulating a watchlist certspotter refuses to parse.
+#   crash_after    - block for $FAKE_CERTSPOTTER_CRASH_DELAY seconds (default
+#                     2) then exit with $FAKE_CERTSPOTTER_EXIT, simulating a
+#                     crash that happens after settle_seconds has elapsed.
+#   ignore_term    - block indefinitely and do not react to TERM/INT at all,
+#                     simulating a hung process that stop_certspotter must
+#                     escalate to SIGKILL.
+set -u
+
+if [ -n "${FAKE_CERTSPOTTER_LOG:-}" ]; then
+    printf '%s\n' "$*" >>"$FAKE_CERTSPOTTER_LOG"
+fi
+
+mode="${FAKE_CERTSPOTTER_MODE:-run}"
+
+case "$mode" in
+crash)
+    exit "${FAKE_CERTSPOTTER_EXIT:-1}"
+    ;;
+crash_after)
+    trap 'exit 0' TERM INT
+    sleep "${FAKE_CERTSPOTTER_CRASH_DELAY:-2}" &
+    wait $!
+    exit "${FAKE_CERTSPOTTER_EXIT:-1}"
+    ;;
+ignore_term)
+    trap '' TERM INT
+    while :; do
+        sleep 1 &
+        wait $!
+    done
+    ;;
+*)
+    trap 'exit 0' TERM INT
+    while :; do
+        sleep 1 &
+        wait $!
+    done
+    ;;
+esac

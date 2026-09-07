@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Mock curl for the bats suite. Never touches the network.
+#
+# Every invocation's arguments are appended to $MOCK_CURL_LOG (if set), one
+# call per MOCK_CURL_CALL/MOCK_CURL_END block, so tests can assert on method,
+# URL, headers and body.
+#
+# Responses come from a sequential queue at $MOCK_CURL_QUEUE_DIR (if set):
+# each file holds the exit code on its first line and the HTTP response body
+# (what curl would have written to stdout) on the rest. Files are consumed in
+# filename order and removed after use — see queue_curl_response in
+# helpers.bash. With no queue directory, or once it is exhausted,
+# MOCK_CURL_DEFAULT_EXIT (default 0) is returned with an empty body, which is
+# enough for callers that only check the exit code (hook.sh, healthcheck.sh).
+set -eu
+
+# report_status (supervise.sh) pipes its JSON body in via `--data @-` rather
+# than passing it as an argv word, so the body has to be read off stdin, not
+# out of "$@", whenever that form is used.
+stdin_body=""
+for arg in "$@"; do
+    if [ "$arg" = "@-" ]; then
+        stdin_body="$(cat)"
+        break
+    fi
+done
+
+if [ -n "${MOCK_CURL_LOG:-}" ]; then
+    {
+        echo "MOCK_CURL_CALL"
+        printf '%s\n' "$@"
+        if [ -n "$stdin_body" ]; then
+            echo "MOCK_CURL_STDIN"
+            printf '%s\n' "$stdin_body"
+        fi
+        echo "MOCK_CURL_END"
+    } >>"$MOCK_CURL_LOG"
+fi
+
+if [ -n "${MOCK_CURL_QUEUE_DIR:-}" ] && [ -d "$MOCK_CURL_QUEUE_DIR" ]; then
+    next="$(find "$MOCK_CURL_QUEUE_DIR" -maxdepth 1 -type f | sort | head -n1)"
+    if [ -n "$next" ]; then
+        exit_code="$(sed -n '1p' "$next")"
+        tail -n +2 "$next"
+        rm -f "$next"
+        exit "${exit_code:-0}"
+    fi
+fi
+
+exit "${MOCK_CURL_DEFAULT_EXIT:-0}"

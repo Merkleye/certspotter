@@ -47,6 +47,13 @@ if [ -f "$retain_flag" ] && [ -n "${CERT_FILENAME:-}" ] && [ -r "${CERT_FILENAME
     cert_pem="$(base64 < "$CERT_FILENAME" | tr -d '\n')"
 fi
 
+# simplecov:disable -- bashcov attributes a backslash-continued multi-line
+# command's execution to only some of its physical lines when the command is
+# captured via $(...) (verified empirically: the `--arg` lines below always
+# read as uncovered no matter how many times this runs, while the quoted
+# filter beneath them reads as covered). This is a coverage-tool limitation
+# on multi-line commands, not an untested path -- tests/hook.bats asserts on
+# the resulting payload's fields directly.
 payload="$(jq -n \
     --arg event         "${EVENT:-}" \
     --arg watch_item    "${WATCH_ITEM:-}" \
@@ -75,6 +82,7 @@ payload="$(jq -n \
         summary: $summary, parse_error: $parse_error, leaf_hash: $leaf_hash,
         cert_pem: $cert_pem
     }')"
+# simplecov:enable
 
 # --fail-with-body surfaces the backend's rejection reason in certspotter's log
 # instead of a bare exit code. Retries cover a backend restart; beyond that,
