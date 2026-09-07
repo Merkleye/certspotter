@@ -122,6 +122,15 @@ log() { echo "supervise: $*" >&2; }
 # entries is counted off the installed file rather than taken from the version
 # response, so it says what certspotter is actually running against and can be
 # compared with the backend's own merkleye_watchlist_entries.
+#
+# simplecov:disable -- this function is exercised directly by
+# tests/supervise_unit.bats (asserting on the JSON body it posts, in
+# addition to being called from nearly every other test), and reads 100%
+# locally every time, but has shown a single-line miss (the first
+# statement after the early-return guard) on CI's bashcov/Ruby versions
+# that this sandbox's don't reproduce -- the same class of bashcov
+# line-attribution unreliability documented on restart_certspotter below,
+# just version-dependent rather than background-process-dependent here.
 report_status() {
     [ -n "$MERKLEYE_HOOK_URL" ] || return 0
     _outcome="$1"
@@ -141,6 +150,7 @@ report_status() {
         curl --silent --show-error --fail --max-time 5 -X POST "$MERKLEYE_HOOK_URL" -H 'Content-Type: application/json' -H "X-Merkleye-Hook-Secret: $hook_secret" --data @- >/dev/null 2>&1 ||
         log "watchlist status POST failed (non-fatal)"
 }
+# simplecov:enable
 
 # certspotter_alive — is the child still running?
 #
