@@ -11,26 +11,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Same "container integrity" gate as merkleye/merkleye's container-build
-  # job — actually builds the Containerfile referenced from
-  # merkleye/merkleye's deploy/docker-compose.yml, rather than trusting that
-  # it merely parses.
+  # The container-integrity gate, from the template. This job was identical to
+  # dnstwist's and to merkleye's own container-build apart from the image
+  # name — actually builds the Containerfile referenced from merkleye's
+  # deploy/docker-compose.yml rather than trusting that it merely parses.
+  #
+  # Same {image, context, file} list pr-preview-image.yml and
+  # scripts/release-image.sh use; keep all three in step.
+  #
+  # Defaults cover the rest: ubuntu-latest, `builder: auto` (Buildx on that
+  # label), the per-image GitHub Actions layer cache this job already used,
+  # and a 15-minute timeout.
   container-build:
-    name: Build certspotter
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build certspotter
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: Containerfile
-          push: false
-          tags: certspotter:ci
-          cache-from: type=gha,scope=certspotter
-          cache-to: type=gha,mode=max,scope=certspotter
+    permissions:
+      contents: read
+    uses: Merkleye/github-templates/.github/workflows/container-ci.yml@main
+    with:
+      images: '[{"image":"certspotter","context":".","file":"Containerfile"}]'
