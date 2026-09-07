@@ -39,7 +39,9 @@ RUN apk add --no-cache curl jq ca-certificates tini
 COPY --from=build /go/bin/certspotter /usr/local/bin/certspotter
 COPY hook.sh /usr/local/bin/merkleye-hook.sh
 COPY healthcheck.sh /usr/local/bin/merkleye-healthcheck.sh
-RUN chmod +x /usr/local/bin/merkleye-hook.sh /usr/local/bin/merkleye-healthcheck.sh
+COPY supervise.sh /usr/local/bin/merkleye-supervise.sh
+RUN chmod +x /usr/local/bin/merkleye-hook.sh /usr/local/bin/merkleye-healthcheck.sh \
+    /usr/local/bin/merkleye-supervise.sh
 
 # certspotter's state_dir holds per-log checkpoints. Losing it means restarting
 # at the log tip and losing every certificate issued since the last checkpoint,
@@ -48,21 +50,21 @@ RUN chmod +x /usr/local/bin/merkleye-hook.sh /usr/local/bin/merkleye-healthcheck
 ENV CERTSPOTTER_STATE_DIR=/var/lib/certspotter
 RUN mkdir -p /var/lib/certspotter /var/lib/merkleye
 
-# tini reaps the short-lived hook processes certspotter forks per certificate.
+# tini reaps the short-lived hook processes certspotter forks per certificate,
+# and now also the supervisor's own children.
 ENTRYPOINT ["/sbin/tini", "--"]
 
-# -start_at_end: begin at the log tip. Starting from the beginning would mean
-#   downloading hundreds of millions of entries over several days; historical
-#   coverage comes from the SSLMate backfill plugin instead (DESIGN G-02).
-# -no_save: Merkleye persists what it needs in Postgres; a second copy on disk
-#   here would grow unbounded.
-CMD ["sh", "-c", "exec certspotter \
-    -watchlist /var/lib/merkleye/watchlist.txt \
-    -state_dir \"$CERTSPOTTER_STATE_DIR\" \
-    -script /usr/local/bin/merkleye-hook.sh \
-    -start_at_end \
-    -no_save \
-    -verbose"]
+# supervise.sh owns the certspotter process rather than certspotter being PID
+# 1's direct child. certspotter reads -watchlist once at startup and has no
+# reload signal, so keeping the watch set current means refetching it from the
+# backend and restarting certspotter — see that script's header for the loop
+# and for the flags it passes (-start_at_end, -no_save, -state_dir).
+#
+# It fetches over HTTP instead of reading a shared volume the backend used to
+# hand it a file on: the watch set is paginated out of the
+# certspotter_watchlist view, which is what puts generated variants in front
+# of certspotter at all.
+CMD ["/usr/local/bin/merkleye-supervise.sh"]
 
 # Process liveness + checkpoint freshness, plus a heartbeat POST to the
 # backend on success — see healthcheck.sh and merkleye/merkleye's
