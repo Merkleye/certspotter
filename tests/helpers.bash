@@ -62,9 +62,19 @@ curl_call_body() {
 # (see hook.sh's own comment on retain_flag), not an env var, so exercising
 # that branch means touching it directly. Created/removed per-test rather
 # than left behind, since it is outside the repo's own tree.
+#
+# /var/lib is root-owned, so a plain `mkdir` only works when the test suite
+# itself runs as root (true in some sandboxes, false on GitHub Actions'
+# `runner` user) -- fall back to sudo, which that runner has passwordless,
+# and leave the directory world-writable so later touch/rm calls in the
+# test body (running as the same non-root user) don't each need sudo too.
 retain_flag_setup() {
     RETAIN_FLAG=/var/lib/merkleye/retain_certificates
-    mkdir -p /var/lib/merkleye
+    if [ -d /var/lib/merkleye ]; then
+        return 0
+    fi
+    mkdir -p /var/lib/merkleye 2>/dev/null || sudo mkdir -p /var/lib/merkleye
+    chmod 1777 /var/lib/merkleye 2>/dev/null || sudo chmod 1777 /var/lib/merkleye
 }
 
 retain_flag_teardown() {
