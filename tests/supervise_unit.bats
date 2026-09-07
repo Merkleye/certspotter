@@ -219,14 +219,15 @@ SH
     start_certspotter
     pid_before="$cs_pid"
     # A forced SIGKILL makes `wait "$cs_pid"` inside stop_certspotter report
-    # a 137 exit status; supervise.sh runs under `set -eu`, and a *bare*
-    # call to stop_certspotter (as restart_certspotter and shutdown both
-    # make it) would abort the whole script right there, skipping
-    # `cs_pid=""`. Calling it as an `if` condition here is what exempts
-    # that internal failure from -e -- see the standalone repro this test
-    # is based on -- so this test can observe the function's own complete
-    # behavior. The bare-call case is a real gap; see the follow-up task
-    # filed for supervise.sh's callers.
+    # a 137 exit status. supervise.sh itself only runs under `set -u` (not
+    # -e), so that alone is harmless there -- but bats runs every @test body
+    # under `set -e`, and sourcing the script into that body doesn't change
+    # that. A *bare* call to stop_certspotter from here would abort this
+    # test right at that `wait`, skipping `cs_pid=""` and everything after
+    # it, purely as an artifact of bats' own harness. Calling it as an `if`
+    # condition exempts that from -e (bash doesn't apply -e to a command
+    # whose status is being tested), letting this test observe the
+    # function's own complete, real behavior.
     if stop_certspotter; then :; fi
     [ -z "$cs_pid" ]
     ! kill -0 "$pid_before" 2>/dev/null
@@ -286,9 +287,9 @@ SH
     export FAKE_CERTSPOTTER_EXIT=1
     log="$BATS_TEST_TMPDIR/restart.log"
     # restart_certspotter legitimately returns 1 here; see stop_certspotter's
-    # test above for why a bare call under `set -eu` isn't safe to make from
-    # a test (or from any future caller) that needs to see that non-zero
-    # status rather than have the whole process abort on it.
+    # test above for why a bare call isn't safe from within a bats test body
+    # (which runs under bats' own `set -e`) when the test needs to see that
+    # non-zero status rather than have bats abort the test on it.
     if restart_certspotter >"$log" 2>&1; then status=0; else status=$?; fi
     [ "$status" -ne 0 ]
     grep -q "rolling back to the previous watchlist" "$log"
