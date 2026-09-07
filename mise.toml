@@ -1,2 +1,17 @@
 [tools]
 node = "22" # .github/workflows/release.yml
+ruby = "3.3" # tests/*.bats -- bashcov, the line-coverage tool for the bash suite
+
+[tasks.test]
+description = "Install bats/bashcov and run the shell test suite with a 100% statement-coverage floor"
+run = """
+set -e
+if ! command -v bats >/dev/null 2>&1; then
+    sudo apt-get update -qq
+    sudo apt-get install -y -qq bats
+fi
+gem install bashcov --no-document --silent
+rm -rf coverage
+bashcov -- bats tests/*.bats
+tests/coverage_report.sh
+"""
