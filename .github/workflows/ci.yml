@@ -11,8 +11,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Same image list pr-preview-image.yml and scripts/release-image.sh use --
-  # keep all three in step.
   container-build:
     permissions:
       contents: read
