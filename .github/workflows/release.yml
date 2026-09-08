@@ -24,6 +24,15 @@ jobs:
       # the default GITHUB_TOKEN cannot do.
       app-token: true
       containers: true
+      # The same JSON ci.yml and pr-preview-image.yml pass, so a preview
+      # builds exactly what a release builds. The template pushes v<version>,
+      # v<major> and latest.
+      images: '[{"image":"certspotter","context":".","file":"Containerfile"}]'
+      sbom: true
+      # The pushed image, not dir:. — the SBOM should describe the layers a
+      # user pulls, base image included. Spelled out rather than interpolated
+      # from github.repository, which capitalises the org.
+      sbom-target: ghcr.io/merkleye/certspotter:$RELEASE_TAG
     secrets:
       CLIENT_ID: ${{ secrets.CLIENT_ID }}
       APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
