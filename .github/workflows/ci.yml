@@ -11,17 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The container-integrity gate, from the template. This job was identical to
-  # dnstwist's and to merkleye's own container-build apart from the image
-  # name — actually builds the Containerfile referenced from merkleye's
-  # deploy/docker-compose.yml rather than trusting that it merely parses.
-  #
-  # Same {image, context, file} list pr-preview-image.yml and
-  # scripts/release-image.sh use; keep all three in step.
-  #
-  # Defaults cover the rest: ubuntu-latest, `builder: auto` (Buildx on that
-  # label), the per-image GitHub Actions layer cache this job already used,
-  # and a 15-minute timeout.
+  # Same image list pr-preview-image.yml and scripts/release-image.sh use --
+  # keep all three in step.
   container-build:
     permissions:
       contents: read
