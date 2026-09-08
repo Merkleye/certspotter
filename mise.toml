@@ -1,2 +1,15 @@
 [tools]
 node = "22" # .github/workflows/release.yml
+shellcheck = "0.11"
+
+[tasks.test]
+description = "Static-check every shell script the image ships"
+# --severity=warning, not the default: shellcheck's info level currently
+# reports one style note in healthcheck.sh (SC2012, `ls -t | head -n1`), and
+# the suggested rewrite returns full paths where the surrounding code wants a
+# basename. Errors and warnings -- the levels that catch real defects -- still
+# fail the gate.
+run = '''
+set -e
+find . -name node_modules -prune -o -name '*.sh' -print0 | xargs -0 -r shellcheck --severity=warning
+'''
